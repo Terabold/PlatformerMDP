@@ -15,7 +15,7 @@ class Game:
         pygame.init()
 
         pygame.display.set_caption('ninja game')
-        self.screen = pygame.display.set_mode((640, 480))
+        self.screen = pygame.display.set_mode((1280, 720))
         self.display = pygame.Surface((320, 240))
 
         self.clock = pygame.time.Clock()
@@ -28,7 +28,7 @@ class Game:
             'large_decor': load_images('tiles/large_decor'),
             'stone': load_images('tiles/stone'),
             'player': load_image('entities/player.png'),
-            'background': load_image('background.png'),
+            'background': load_image('background.jpg'),
             'clouds': load_images('clouds'),
             'player/idle': Animation(load_images('entities/player/idle'), img_dur=6),
             'player/run': Animation(load_images('entities/player/run'), img_dur=4),
@@ -45,10 +45,6 @@ class Game:
         
         self.tilemap = Tilemap(self, tile_size=16)
         self.tilemap.load('map.json')
-        
-        self.leaf_spawners = []
-        for tree in self.tilemap.extract([('large_decor', 2)], keep=True):
-            self.leaf_spawners.append(pygame.Rect(4 + tree['pos'][0], 4 + tree['pos'][1], 23, 13))
             
         self.particles = []
         
@@ -62,44 +58,57 @@ class Game:
             self.scroll[1] += (self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1]) / 30
             render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
             
-            for rect in self.leaf_spawners:
-                if random.random() * 49999 < rect.width * rect.height:
-                    pos = (rect.x + random.random() * rect.width, rect.y + random.random() * rect.height)
-                    self.particles.append(Particle(self, 'leaf', pos, velocity=[-0.1, 0.3], frame=random.randint(0, 20)))
-            
             self.clouds.update()
             self.clouds.render(self.display, offset=render_scroll)
             
             self.tilemap.render(self.display, offset=render_scroll)
             
-            self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
-            self.player.render(self.display, offset=render_scroll)
+            # Create a temporary surface for rendering player and particles
+            temp_surface = pygame.Surface((self.display.get_width(), self.display.get_height()), pygame.SRCALPHA)
             
+            # Render player to temporary surface
+            self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
+            self.player.render(temp_surface, offset=render_scroll)
+            
+            # Render particles to temporary surface
             for particle in self.particles.copy():
                 kill = particle.update()
-                particle.render(self.display, offset=render_scroll)
+                particle.render(temp_surface, offset=render_scroll)
                 if particle.type == 'leaf':
                     particle.pos[0] += math.sin(particle.animation.frame * 0.035) * 0.3
                 if kill:
                     self.particles.remove(particle)
+            
+            # Create mask from the temp surface
+            temp_mask = pygame.mask.from_surface(temp_surface)
+            
+            # Create white silhouette from mask
+            white_silhouette = temp_mask.to_surface(setcolor=(255, 255, 255, 180), unsetcolor=(0, 0, 0, 0))
+            
+            # Draw white outline by offsetting silhouette in all directions
+            for offset in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                self.display.blit(white_silhouette, offset)
+            
+            # Now draw the actual player and particles on top
+            self.display.blit(temp_surface, (0, 0))
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_LEFT:
+                    if event.key == pygame.K_a:
                         self.movement[0] = True
-                    if event.key == pygame.K_RIGHT:
+                    if event.key == pygame.K_d:
                         self.movement[1] = True
-                    if event.key == pygame.K_UP:
+                    if event.key == pygame.K_SPACE:
                         self.player.jump()
-                    if event.key == pygame.K_x:
+                    if event.key == pygame.K_LSHIFT:
                         self.player.dash()
                 if event.type == pygame.KEYUP:
-                    if event.key == pygame.K_LEFT:
+                    if event.key == pygame.K_a:
                         self.movement[0] = False
-                    if event.key == pygame.K_RIGHT:
+                    if event.key == pygame.K_d:
                         self.movement[1] = False
             
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0))
