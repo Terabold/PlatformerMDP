@@ -85,6 +85,7 @@ class Player(PhysicsEntity):
         self.sliding = 0
         self.slide_cooldown = 0
         self.slide_wall_stun = 0
+        self.dash_direction = (0, 0)
     
     def update(self, tilemap, movement=(0, 0)):
         # Store pre-update position for slide wall detection
@@ -137,12 +138,16 @@ class Player(PhysicsEntity):
             else:
                 self.velocity[0] = PLAYER_SLIDE_SPEED   # Slide right
                 
+            # Push player down during slide
+            if not self.collisions['down']:
+                self.velocity[1] = 2.0  # Push player downward during slide
+                
             # Create particle effects during slide
             if self.sliding % 3 == 0:
                 pvelocity = [-0.5 if self.flip else 0.5, 0]
                 self.game.particles.append(Particle(self.game, 'particle', 
-                                                   [self.rect().centerx, self.rect().bottom - 2], 
-                                                   velocity=pvelocity, frame=random.randint(0, 7)))
+                                                [self.rect().centerx, self.rect().bottom - 2], 
+                                                velocity=pvelocity, frame=random.randint(0, 7)))
             
         # Wall sliding logic - don't allow wall slide immediately after hitting wall during slide
         self.wall_slide = False
@@ -169,28 +174,54 @@ class Player(PhysicsEntity):
             else:
                 self.set_action('idle')
         
-        # Dash particle effects
-        if abs(self.dashing) in {PLAYER_DASH_DURATION, PLAYER_DASH_DURATION - 10}:
-            for i in range(PARTICLE_COUNT_DASH):
-                angle = random.random() * math.pi * 2
-                speed = random.random() * (PARTICLE_SPEED_MAX - PARTICLE_SPEED_MIN) + PARTICLE_SPEED_MIN
-                pvelocity = [math.cos(angle) * speed, math.sin(angle) * speed]
-                self.game.particles.append(Particle(self.game, 'particle', self.rect().center, velocity=pvelocity, frame=random.randint(0, 7)))
+        # Handle dash mechanics
         if self.dashing > 0:
             self.dashing = max(0, self.dashing - 1)
         if self.dashing < 0:
             self.dashing = min(0, self.dashing + 1)
+            
+        # Apply dash movement if currently dashing
         if abs(self.dashing) > PLAYER_DASH_DURATION - 10:
-            self.velocity[0] = abs(self.dashing) / self.dashing * PLAYER_DASH_SPEED
-            if abs(self.dashing) == PLAYER_DASH_DURATION - 9:
-                self.velocity[0] *= PLAYER_DASH_SLOWDOWN
-            pvelocity = [abs(self.dashing) / self.dashing * random.random() * 3, 0]
-            self.game.particles.append(Particle(self.game, 'particle', self.rect().center, velocity=pvelocity, frame=random.randint(0, 7)))
+            if hasattr(self, 'dash_direction'):
+                # Apply velocity based on the stored dash direction
+                direction_x, direction_y = self.dash_direction
                 
-        if self.velocity[0] > 0:
-            self.velocity[0] = max(self.velocity[0] - FRICTION, 0)
-        else:
-            self.velocity[0] = min(self.velocity[0] + FRICTION, 0)
+                # Calculate dash speeds
+                dash_speed_x = PLAYER_DASH_SPEED if direction_x != 0 else 0
+                dash_speed_y = PLAYER_DASH_SPEED if direction_y != 0 else 0
+                
+                # Normalize diagonal movement to maintain consistent speed
+                if direction_x != 0 and direction_y != 0:
+                    # Pythagoras to the rescue (1/sqrt(2) ≈ 0.7071)
+                    dash_speed_x *= 0.7071
+                    dash_speed_y *= 0.7071
+                
+                # Apply the directional speeds
+                self.velocity[0] = direction_x * dash_speed_x
+                self.velocity[1] = direction_y * dash_speed_y
+                
+                # Apply slowdown at the end of dash
+                if abs(self.dashing) == PLAYER_DASH_DURATION - 9:
+                    self.velocity[0] *= PLAYER_DASH_SLOWDOWN
+                    self.velocity[1] *= PLAYER_DASH_SLOWDOWN
+            
+            # Create trail particles during dash
+            if self.dashing % 3 == 0:
+                # Adjust particle direction based on dash direction
+                if hasattr(self, 'dash_direction'):
+                    direction_x, direction_y = self.dash_direction
+                    pvelocity = [-direction_x * random.random() * 2, -direction_y * random.random() * 2]
+                    self.game.particles.append(Particle(self.game, 'particle', 
+                                                    self.rect().center, 
+                                                    velocity=pvelocity, 
+                                                    frame=random.randint(0, 7)))
+                
+        # Apply friction when not dashing
+        if abs(self.dashing) <= PLAYER_DASH_DURATION - 10:
+            if self.velocity[0] > 0:
+                self.velocity[0] = max(self.velocity[0] - FRICTION, 0)
+            else:
+                self.velocity[0] = min(self.velocity[0] + FRICTION, 0)
     
     def render(self, surf, offset=(0, 0)):
         if abs(self.dashing) <= PLAYER_DASH_DURATION - 10:
@@ -223,26 +254,69 @@ class Player(PhysicsEntity):
     
     def dash(self):
         # Don't allow dash during slide wall stun
-        if self.slide_wall_stun > 0:
+        if self.slide_wall_stun > 0 or self.dashing:
             return False
             
-        if not self.dashing:
-            if self.flip:
-                self.dashing = -PLAYER_DASH_DURATION
+        # Get the current keyboard state
+        keys = pygame.key.get_pressed()
+        
+        # Determine dash direction based on key combinations
+        dash_direction = None
+        
+        # Check for up direction (diagonal up-left, straight up, or diagonal up-right)
+        if keys[KEY_UP]:
+            if keys[KEY_LEFT]:
+                # Diagonal up-left
+                dash_direction = (-1, -1)
+            elif keys[KEY_RIGHT]:
+                # Diagonal up-right
+                dash_direction = (1, -1)
             else:
-                self.dashing = PLAYER_DASH_DURATION
+                # Straight up
+                dash_direction = (0, -1)
+        
+        # If no valid direction is pressed, don't dash
+        if dash_direction is None:
+            return False
+        
+        # Set dashing state based on horizontal direction
+        if dash_direction[0] < 0:
+            self.dashing = -PLAYER_DASH_DURATION
+            self.flip = True
+        elif dash_direction[0] > 0:
+            self.dashing = PLAYER_DASH_DURATION
+            self.flip = False
+        else:
+            # For straight up, use current facing direction
+            self.dashing = PLAYER_DASH_DURATION if not self.flip else -PLAYER_DASH_DURATION
+        
+        # Store the selected dash direction for use in the update method
+        self.dash_direction = dash_direction
+        
+        # Create initial dash effect
+        for i in range(PARTICLE_COUNT_DASH):
+            angle = random.random() * math.pi * 2
+            speed = random.random() * (PARTICLE_SPEED_MAX - PARTICLE_SPEED_MIN) + PARTICLE_SPEED_MIN
+            pvelocity = [math.cos(angle) * speed, math.sin(angle) * speed]
+            self.game.particles.append(Particle(self.game, 'particle', self.rect().center, 
+                                            velocity=pvelocity, frame=random.randint(0, 7)))
+        
+        return True
                 
     def slide(self):
         # Don't allow new slide during slide wall stun
         if self.slide_wall_stun > 0:
             return False
             
-        # Allow sliding when on the ground or just barely off the ground (more forgiving)
-        if (self.collisions['down'] or self.air_time < PLAYER_AIR_TIME_THRESHOLD + 1) and not self.sliding and self.slide_cooldown == 0:
+        # Allow sliding when on the ground OR in the air (new feature)
+        if not self.sliding and self.slide_cooldown == 0:
             # Set sliding duration
             self.sliding = PLAYER_SLIDE_DURATION
-            # Add a cooldown after slide finishes
-            self.slide_cooldown = PLAYER_SLIDE_COOLDOWN
+            # Add a longer cooldown (60 frames) specifically for air slides
+            if not self.collisions['down']:
+                self.slide_cooldown = 60  # Longer cooldown for air slides
+            else:
+                self.slide_cooldown = PLAYER_SLIDE_COOLDOWN  # Regular cooldown for ground slides
             
             # Always apply slide force in the direction you're facing
             # But make it stronger if you're already moving that way
@@ -258,6 +332,9 @@ class Player(PhysicsEntity):
                 if self.last_movement[0] > 0:
                     base_speed += 1.0
                 self.velocity[0] = base_speed
+            
+            # Apply immediate downward velocity for both ground and air slides
+            self.velocity[1] = 2.0
             
             return True
         return False
