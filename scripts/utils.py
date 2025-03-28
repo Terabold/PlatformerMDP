@@ -1,7 +1,7 @@
 import os
 
 import pygame
-from scripts.Constants import *
+from Constants import *
 BASE_IMG_PATH = 'data/images/'
 
 def load_image(path, scale = None, remove_color = (0, 0, 0)):

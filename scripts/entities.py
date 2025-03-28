@@ -1,6 +1,6 @@
 import math
 import random
-from scripts.Constants import *
+from Constants import *
 import pygame
 
 from scripts.particle import Particle
@@ -302,39 +302,3 @@ class Player(PhysicsEntity):
                                             velocity=pvelocity, frame=random.randint(0, 7)))
         
         return True
-                
-    def slide(self):
-        # Don't allow new slide during slide wall stun
-        if self.slide_wall_stun > 0:
-            return False
-            
-        # Allow sliding when on the ground OR in the air (new feature)
-        if not self.sliding and self.slide_cooldown == 0:
-            # Set sliding duration
-            self.sliding = PLAYER_SLIDE_DURATION
-            # Add a longer cooldown (60 frames) specifically for air slides
-            if not self.collisions['down']:
-                self.slide_cooldown = 60  # Longer cooldown for air slides
-            else:
-                self.slide_cooldown = PLAYER_SLIDE_COOLDOWN  # Regular cooldown for ground slides
-            
-            # Always apply slide force in the direction you're facing
-            # But make it stronger if you're already moving that way
-            if self.flip:
-                base_speed = -PLAYER_SLIDE_SPEED
-                # Add extra speed if already moving left
-                if self.last_movement[0] < 0:
-                    base_speed -= 1.0
-                self.velocity[0] = base_speed
-            else:
-                base_speed = PLAYER_SLIDE_SPEED
-                # Add extra speed if already moving right
-                if self.last_movement[0] > 0:
-                    base_speed += 1.0
-                self.velocity[0] = base_speed
-            
-            # Apply immediate downward velocity for both ground and air slides
-            self.velocity[1] = 2.0
-            
-            return True
-        return False
