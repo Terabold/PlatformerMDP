@@ -19,7 +19,7 @@ class Editor:
         self.tilemap = Tilemap(self, tile_size=TILE_SIZE)
 
         self.assets = self.reload_assets()
-        self.bgIMG = load_image('background.png', scale=(DISPLAY_WIDTH, DISPLAY_HEIGHT))
+        self.bgIMG = load_image('background-2.jpg', scale=(DISPLAY_WIDTH, DISPLAY_HEIGHT))
         
         self.movement = [False, False, False, False]
         
@@ -136,18 +136,6 @@ class Editor:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         self.clicking = True
-                        if not self.ongrid:
-                            tile_type = self.tile_list[self.tile_group]
-                            # if (tile_type not in PHYSICS_TILES and tile_type not in INTERACTIVE_TILES):
-                            #     tile_pos = (
-                            #         (adjusted_mpos[0] + self.scroll[0]) / self.tilemap.tile_size, 
-                            #         (adjusted_mpos[1] + self.scroll[1]) / self.tilemap.tile_size
-                            #     )
-                            #     self.tilemap.offgrid_tiles.append({
-                            #         'type': self.tile_list[self.tile_group], 
-                            #         'variant': self.tile_variant, 
-                            #         'pos': tile_pos
-                            #     })
                     if event.button == 3:
                         self.right_clicking = True
                     if self.shift:
