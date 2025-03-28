@@ -21,10 +21,6 @@ class Engine:
         while True:
             self.state[state_control.getState()].run()
 
-            # fps = str(int(self.clock.get_fps()))
-            # fpsTXT = Text(fps, (50, 50))
-            # fpsTXT.blit(self.display)
-
             pygame.display.update() 
             self.clock.tick(FPS)
 

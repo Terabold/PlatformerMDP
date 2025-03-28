@@ -37,22 +37,16 @@ class Game:
         }
         
         self.clouds = Clouds(self.assets['clouds'], count=CLOUD_COUNT)
+
         self.tilemap = Tilemap(self, tile_size=TILE_SIZE)
         self.tilemap.load(DEFAULT_MAP_PATH)
-        
-        self.player = Player(self, self.get_player_spawn(), PLAYER_SIZE)
-        
+
+        self.pos = self.tilemap.extract([('spawners', 0), ('spawners', 1)])
+        default_pos = self.pos[0]['pos'] if self.pos else [10, 10]
+        self.player = Player(self, default_pos, PLAYER_SIZE)
+                    
         self.particles = []
-        self.scroll = [0, 0]
-    
-    def get_player_spawn(self):
-        for tile in self.tilemap.tilemap.values():
-            if tile['type'] == 'spawn': 
-                return [
-                    tile['pos'][0] * self.tilemap.tile_size + self.tilemap.tile_size // 2,
-                    tile['pos'][1] * self.tilemap.tile_size + self.tilemap.tile_size // 2
-                ]
-        return [50, 50]
+        self.scroll = [10,10]
         
     def run(self):
         while True:
@@ -62,8 +56,8 @@ class Game:
             self.scroll[1] += (self.player.rect().centery - self.display.get_height() *0.7 - self.scroll[1]) / CAMERA_SPEED
             render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
             
-            # self.clouds.update()
-            # self.clouds.render(self.display, offset=render_scroll)
+            self.clouds.update()
+            self.clouds.render(self.display, offset=render_scroll)
             
             self.tilemap.render(self.display, offset=render_scroll)
             

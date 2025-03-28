@@ -32,14 +32,17 @@ class Tilemap:
                 matches.append(tile.copy())
                 if not keep:
                     self.offgrid_tiles.remove(tile)
-                    
-        for loc in self.tilemap:
+        
+        # Convert dict keys to a list before iteration to avoid RuntimeError
+        tilemap_keys = list(self.tilemap.keys())
+        for loc in tilemap_keys:
             tile = self.tilemap[loc]
             if (tile['type'], tile['variant']) in id_pairs:
-                matches.append(tile.copy())
-                matches[-1]['pos'] = matches[-1]['pos'].copy()
-                matches[-1]['pos'][0] *= self.tile_size
-                matches[-1]['pos'][1] *= self.tile_size
+                match = tile.copy()
+                match['pos'] = match['pos'].copy()
+                match['pos'][0] *= self.tile_size
+                match['pos'][1] *= self.tile_size
+                matches.append(match)
                 if not keep:
                     del self.tilemap[loc]
         
@@ -67,6 +70,12 @@ class Tilemap:
         self.tilemap = map_data['tilemap']
         self.tile_size = map_data['tile_size']
         self.offgrid_tiles = map_data['offgrid']
+        
+    def solid_check(self, pos):
+        tile_loc = str(int(pos[0] // self.tile_size)) + ';' + str(int(pos[1] // self.tile_size))
+        if tile_loc in self.tilemap:
+            if self.tilemap[tile_loc]['type'] in PHYSICS_TILES:
+                return self.tilemap[tile_loc]
     
     def physics_rects_around(self, pos):
         rects = []
@@ -90,14 +99,11 @@ class Tilemap:
 
     def render(self, surf, offset=(0, 0)):
         for tile in self.offgrid_tiles:
-            # Skip rendering player-related tiles
-            if tile['type'] not in ['player', 'player_spawn']:
-                surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] - offset[0], tile['pos'][1] - offset[1]))
+            surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] - offset[0], tile['pos'][1] - offset[1]))
             
         for x in range(offset[0] // self.tile_size, (offset[0] + surf.get_width()) // self.tile_size + 1):
             for y in range(offset[1] // self.tile_size, (offset[1] + surf.get_height()) // self.tile_size + 1):
                 loc = str(x) + ';' + str(y)
                 if loc in self.tilemap:
                     tile = self.tilemap[loc]
-                    if tile['type'] not in ['spawn']:
-                        surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))
+                    surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))
