@@ -1,4 +1,4 @@
 # fixing PLAYER/ improving
-# fixing editor zoom feature, player spawn
+# fixing editor zoom feature
 # making levels
 # finishline 

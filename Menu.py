@@ -3,7 +3,7 @@ from scripts.utils import Button
 from screenstate import state_control
 from Constants import SCREEN_WIDTH, FONT, RECT, MENUBG, WHITE, FONT2, MENUTXTCOLOR
 
-def font_scale(size, Font=FONT2):
+def font_scale(size, Font=FONT):
     return pygame.font.Font(Font, size)
 
 def create_shadowed_text(text, font, color, shadow_color=(0,0,0), offset=4):

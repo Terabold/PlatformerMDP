@@ -1,9 +1,7 @@
 import sys
-import math
-import random
 import pygame
 from scripts.utils import load_image, load_images, Animation
-from scripts.player import Player
+from player import Player
 from scripts.tilemap import Tilemap
 from scripts.clouds import Clouds
 from scripts.particle import Particle
@@ -15,6 +13,7 @@ class Game:
 
         pygame.display.set_caption(GAME_TITLE)
         self.screen = screen
+        
         self.display = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self.clock = pygame.time.Clock()
         
@@ -36,6 +35,9 @@ class Game:
             'particle/particle': Animation(load_images('particles/particle'), img_dur=PARTICLE_ANIMATION_DURATION, loop=False),
         }
         
+        self.music = pygame.mixer.Sound(MUSIC)
+        self.music.set_volume(0.05)
+
         self.clouds = Clouds(self.assets['clouds'], count=CLOUD_COUNT)
 
         self.tilemap = Tilemap(self, tile_size=TILE_SIZE)
@@ -51,11 +53,17 @@ class Game:
     def run(self):
         while True:
             self.display.blit(self.assets['background'], (0, 0))
-            
+            self.music.play(-1)
             self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / CAMERA_SPEED
             self.scroll[1] += (self.player.rect().centery - self.display.get_height() *0.7 - self.scroll[1]) / CAMERA_SPEED
             render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
-            
+
+            #fps
+            fps = str(int(self.clock.get_fps()))
+            font = pygame.font.Font(FONT, 10)  
+            fps_t = font.render(fps, True, pygame.Color("RED"))
+            self.display.blit(fps_t, (0, 0))
+
             self.clouds.update()
             self.clouds.render(self.display, offset=render_scroll)
             
@@ -65,7 +73,12 @@ class Game:
             temp_surface = pygame.Surface((self.display.get_width(), self.display.get_height()), pygame.SRCALPHA)
             
             # Render player to temporary surface
-            self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
+            movement_x = 0
+            if self.movement[0]:  # Left movement
+                movement_x -= 2
+            if self.movement[1]:  # Right movement
+                movement_x += 2
+            self.player.update(self.tilemap, (movement_x, 0))
             self.player.render(temp_surface, offset=render_scroll)
             
             # Render particles to temporary surface
@@ -77,7 +90,7 @@ class Game:
             
             # outline
             temp_mask = pygame.mask.from_surface(temp_surface)   
-            white_silhouette = temp_mask.to_surface(setcolor=(0, 255, 255), unsetcolor=TRANSPARENT)
+            white_silhouette = temp_mask.to_surface(setcolor=(255, 255, 255), unsetcolor=TRANSPARENT)
             for offset in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                 self.display.blit(white_silhouette, offset)         
             self.display.blit(temp_surface, (0, 0))
