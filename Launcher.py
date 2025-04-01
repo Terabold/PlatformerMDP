@@ -3,7 +3,6 @@ from Constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, FONT
 from game import Game
 from Menu import Menu
 from screenstate import state_control
-from scripts.utils import Text
 
 class Engine:
     def __init__(self):

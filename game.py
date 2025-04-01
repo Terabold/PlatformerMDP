@@ -4,6 +4,7 @@ from scripts.utils import load_image, load_images, Animation
 from player import Player
 from scripts.tilemap import Tilemap
 from scripts.clouds import Clouds
+from scripts.Background import Backgrounds
 from scripts.particle import Particle
 from Constants import *
 
@@ -27,6 +28,7 @@ class Game:
             'player': load_image('entities/player.png'),
             'background': load_image('background3.png'),
             'clouds': load_images('clouds'),
+            'backgrounds': load_images('backgrounds'),
             'player/idle': Animation(load_images('entities/player/idle'), img_dur=IDLE_ANIMATION_DURATION),
             'player/run': Animation(load_images('entities/player/run'), img_dur=RUN_ANIMATION_DURATION),
             'player/jump': Animation(load_images('entities/player/jump')),
@@ -39,6 +41,7 @@ class Game:
         self.music.set_volume(0.05)
 
         self.clouds = Clouds(self.assets['clouds'], count=CLOUD_COUNT)
+        self.backgrounds = Backgrounds(self.assets['backgrounds'], count=1)
 
         self.tilemap = Tilemap(self, tile_size=TILE_SIZE)
         self.tilemap.load(DEFAULT_MAP_PATH)
@@ -52,10 +55,10 @@ class Game:
         
     def run(self):
         while True:
-            self.display.blit(self.assets['background'], (0, 0))
+            self.display.fill((0, 0, 0))
             self.music.play(-1)
             self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / CAMERA_SPEED
-            self.scroll[1] += (self.player.rect().centery - self.display.get_height() *0.7 - self.scroll[1]) / CAMERA_SPEED
+            self.scroll[1] += (self.player.rect().centery - self.display.get_height() *0.65 - self.scroll[1]) / CAMERA_SPEED
             render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
 
             #fps
@@ -63,6 +66,9 @@ class Game:
             font = pygame.font.Font(FONT, 10)  
             fps_t = font.render(fps, True, pygame.Color("RED"))
             self.display.blit(fps_t, (0, 0))
+
+            self.backgrounds.update()
+            self.backgrounds.render(self.display, offset=render_scroll)
 
             self.clouds.update()
             self.clouds.render(self.display, offset=render_scroll)
@@ -75,9 +81,9 @@ class Game:
             # Render player to temporary surface
             movement_x = 0
             if self.movement[0]:  # Left movement
-                movement_x -= 2
+                movement_x -= 1
             if self.movement[1]:  # Right movement
-                movement_x += 2
+                movement_x += 1
             self.player.update(self.tilemap, (movement_x, 0))
             self.player.render(temp_surface, offset=render_scroll)
             

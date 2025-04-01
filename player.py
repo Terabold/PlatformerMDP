@@ -37,6 +37,10 @@ class Player:
         self.jump_timer = 0
         self.max_jump_time = 20  # Maximum time jump can be held
         self.jump_strength_multiplier = 1.0
+        
+        # Add wall jump cooldown to prevent repeated wall jumps
+        self.wall_jump_cooldown = 0
+        self.last_wall_side = None  # 'left' or 'right'
     
     def rect(self):
         return pygame.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
@@ -49,6 +53,10 @@ class Player:
     def update(self, tilemap, movement=(0, 0)):
         # Reset collisions
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
+        
+        # Update wall jump cooldown
+        if self.wall_jump_cooldown > 0:
+            self.wall_jump_cooldown -= 1
         
         # Physics movement calculation
         frame_movement = (movement[0] + self.velocity[0], movement[1] + self.velocity[1])
@@ -101,6 +109,8 @@ class Player:
             self.jumps = 1
             self.jump_timer = 0
             self.jump_strength_multiplier = 1.0
+            self.wall_jump_cooldown = 0  # Reset wall jump cooldown when landing
+            self.last_wall_side = None   # Reset last wall side when landing
         
         # Wall sliding logic
         self.wall_slide = False
@@ -109,8 +119,15 @@ class Player:
             self.velocity[1] = min(self.velocity[1], PLAYER_WALL_SLIDE_SPEED)
             if self.collisions['right']:
                 self.flip = False
+                current_wall = 'right'
             else:
                 self.flip = True
+                current_wall = 'left'
+            
+            # Update last wall side when in contact with a wall
+            if self.last_wall_side != current_wall:
+                self.last_wall_side = current_wall
+            
             self.set_action('wall_slide')
         
         # Animation state logic
@@ -200,26 +217,25 @@ class Player:
                 self.pos[1] - offset[1] + self.anim_offset[1]))
     
     def jump(self):        
-        # Check for wall jump
-        if self.wall_slide:
-            keys = pygame.key.get_pressed()
-            wall_jump_vertical = -PLAYER_WALL_JUMP_VERTICAL
-            wall_jump_horizontal = PLAYER_WALL_JUMP_HORIZONTAL
+        # Check for wall jump - COMPLETELY REWORKED
+        if self.wall_slide and self.wall_jump_cooldown == 0:
+            # Significantly reduced horizontal and vertical wall jump speed
+            wall_jump_horizontal = PLAYER_WALL_JUMP_HORIZONTAL * 0.4  # Reduced by 60%
+            wall_jump_vertical = -PLAYER_WALL_JUMP_VERTICAL * 0.6     # Reduced by 40%
             
-            # Adjust jump based on up key
-            if keys[KEY_UP]:
-                wall_jump_vertical *= 1.2  # Higher wall jump
-                wall_jump_horizontal *= 0.8  # Less horizontal momentum
+            # Set wall jump cooldown to prevent repeated wall jumps
+            self.wall_jump_cooldown = 30  # About half a second at 60 FPS
             
-            if self.flip and self.last_movement[0] < 0:
-                self.velocity[0] = wall_jump_horizontal
+            # Force player to jump AWAY from the wall
+            if self.collisions['left']:  # Left wall - must jump RIGHT
+                self.velocity[0] = wall_jump_horizontal  # Positive = right
                 self.velocity[1] = wall_jump_vertical
                 self.air_time = PLAYER_AIR_TIME_THRESHOLD + 1
                 self.jumps = max(0, self.jumps - 1)
                 self.jump_held = True
                 return True
-            elif not self.flip and self.last_movement[0] > 0:
-                self.velocity[0] = -wall_jump_horizontal
+            elif self.collisions['right']:  # Right wall - must jump LEFT
+                self.velocity[0] = -wall_jump_horizontal  # Negative = left
                 self.velocity[1] = wall_jump_vertical
                 self.air_time = PLAYER_AIR_TIME_THRESHOLD + 1
                 self.jumps = max(0, self.jumps - 1)
