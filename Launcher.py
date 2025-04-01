@@ -3,7 +3,7 @@ from Constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, FONT
 from game import Game
 from Menu import Menu
 from screenstate import state_control
-
+from scripts.utils import Text
 class Engine:
     def __init__(self):
         pygame.init()
@@ -21,8 +21,7 @@ class Engine:
         while True:
             self.state[state_control.getState()].run()
 
-            # Correct way to create a font and render the FPS
-            font = pygame.font.SysFont(FONT, 50)  # You can choose another font
+            font = pygame.font.SysFont(FONT, 50) 
             fps = str(int(self.clock.get_fps()))
             fps_t = font.render(fps, True, pygame.Color("RED"))
 

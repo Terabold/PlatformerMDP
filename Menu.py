@@ -1,7 +1,7 @@
 import pygame, sys
 from scripts.utils import Button
 from screenstate import state_control
-from Constants import SCREEN_WIDTH, FONT, RECT, MENUBG, WHITE, FONT2, MENUTXTCOLOR
+from Constants import SCREEN_WIDTH, FONT, RECT, MENUBG, WHITE, MENUTXTCOLOR
 
 def font_scale(size, Font=FONT):
     return pygame.font.Font(Font, size)

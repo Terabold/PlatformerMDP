@@ -52,7 +52,7 @@ class Text():
     
 
 class Button():
-    def __init__(self, image, pos, text_input, font, base_color, hovering_color):
+    def __init__(self, image=None, pos=(0,0), text_input="", font=None, base_color="#d7fcd4", hovering_color="White"):
         self.image = image
         self.x_pos = pos[0]
         self.y_pos = pos[1]
@@ -60,8 +60,12 @@ class Button():
         self.base_color, self.hovering_color = base_color, hovering_color
         self.text_input = text_input
         self.text = self.font.render(self.text_input, True, self.base_color)
+        
         if self.image is None:
-            self.image = self.text
+            # Create a default surface if no image is provided
+            self.image = pygame.Surface((self.text.get_width() + 20, self.text.get_height() + 10))
+            self.image.fill((100, 100, 100))
+            
         self.rect = self.image.get_rect(center=(self.x_pos, self.y_pos))
         self.text_rect = self.text.get_rect(center=(self.x_pos, self.y_pos))
 

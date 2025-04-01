@@ -4,7 +4,7 @@ from scripts.utils import load_image, load_images, Animation
 from player import Player
 from scripts.tilemap import Tilemap
 from scripts.clouds import Clouds
-from scripts.Background import Backgrounds
+from scripts.Background import backgrounds
 from scripts.particle import Particle
 from Constants import *
 
@@ -26,7 +26,7 @@ class Game:
             'large_decor': load_images('tiles/large_decor'),
             'stone': load_images('tiles/stone'),
             'player': load_image('entities/player.png'),
-            'background': load_image('background3.png'),
+            'background': load_image('background-2.jpg'),
             'clouds': load_images('clouds'),
             'backgrounds': load_images('backgrounds'),
             'player/idle': Animation(load_images('entities/player/idle'), img_dur=IDLE_ANIMATION_DURATION),
@@ -41,7 +41,7 @@ class Game:
         self.music.set_volume(0.05)
 
         self.clouds = Clouds(self.assets['clouds'], count=CLOUD_COUNT)
-        self.backgrounds = Backgrounds(self.assets['backgrounds'], count=1)
+        self.backgrounds = backgrounds(self.assets['backgrounds'], count=30)
 
         self.tilemap = Tilemap(self, tile_size=TILE_SIZE)
         self.tilemap.load(DEFAULT_MAP_PATH)
@@ -55,7 +55,7 @@ class Game:
         
     def run(self):
         while True:
-            self.display.fill((0, 0, 0))
+            self.display.blit(self.assets['background'], (0, 0))
             self.music.play(-1)
             self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / CAMERA_SPEED
             self.scroll[1] += (self.player.rect().centery - self.display.get_height() *0.65 - self.scroll[1]) / CAMERA_SPEED
