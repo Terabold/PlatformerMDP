@@ -39,8 +39,9 @@ class Player:
         self.jump_strength_multiplier = 1.0
         
         # Add wall jump cooldown to prevent repeated wall jumps
-        self.wall_jump_cooldown = 0
         self.last_wall_side = None  # 'left' or 'right'
+
+        self.stamina = 110
     
     def rect(self):
         return pygame.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
@@ -53,10 +54,6 @@ class Player:
     def update(self, tilemap, movement=(0, 0)):
         # Reset collisions
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
-        
-        # Update wall jump cooldown
-        if self.wall_jump_cooldown > 0:
-            self.wall_jump_cooldown -= 1
         
         # Physics movement calculation
         frame_movement = (movement[0] + self.velocity[0], movement[1] + self.velocity[1])
@@ -109,9 +106,12 @@ class Player:
             self.jumps = 1
             self.jump_timer = 0
             self.jump_strength_multiplier = 1.0
-            self.wall_jump_cooldown = 0  # Reset wall jump cooldown when landing
             self.last_wall_side = None   # Reset last wall side when landing
         
+        if self.air_time < PLAYER_AIR_TIME_THRESHOLD:
+            self.stamina = 110
+        else: self.stamina -= 1/6
+
         # Wall sliding logic
         self.wall_slide = False
         if (self.collisions['right'] or self.collisions['left']) and self.air_time > PLAYER_AIR_TIME_THRESHOLD:
@@ -129,6 +129,7 @@ class Player:
                 self.last_wall_side = current_wall
             
             self.set_action('wall_slide')
+
         
         # Animation state logic
         if not self.wall_slide:
@@ -218,13 +219,13 @@ class Player:
     
     def jump(self):        
         # Check for wall jump - COMPLETELY REWORKED
-        if self.wall_slide and self.wall_jump_cooldown == 0:
+        if self.wall_slide and self.stamina > 0:
             # Significantly reduced horizontal and vertical wall jump speed
             wall_jump_horizontal = PLAYER_WALL_JUMP_HORIZONTAL * 0.4  # Reduced by 60%
-            wall_jump_vertical = -PLAYER_WALL_JUMP_VERTICAL * 0.6     # Reduced by 40%
+            wall_jump_vertical = -PLAYER_WALL_JUMP_VERTICAL     # Reduced by 40%
             
             # Set wall jump cooldown to prevent repeated wall jumps
-            self.wall_jump_cooldown = 30  # About half a second at 60 FPS
+            self.stamina -= 30
             
             # Force player to jump AWAY from the wall
             if self.collisions['left']:  # Left wall - must jump RIGHT
