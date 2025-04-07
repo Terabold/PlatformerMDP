@@ -16,7 +16,7 @@ class Editor:
         self.display = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
 
         self.clock = pygame.time.Clock()
-        self.bgIMG = load_image('background3.png', scale=(DISPLAY_WIDTH, DISPLAY_HEIGHT))
+        self.bgIMG = load_image('background.png', scale=(DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self.assets = {
             'decor': load_images('tiles/decor'),
             'grass': load_images('tiles/grass'),

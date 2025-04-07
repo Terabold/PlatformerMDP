@@ -14,10 +14,8 @@ class Game:
         self.display = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self.clock = pygame.time.Clock()
         
-        # Replace the direct movement with the human agent
         self.agent = HumanAgent()
         
-        # Load assets
         self.assets = {
             'decor': load_images('tiles/decor'),
             'grass': load_images('tiles/grass'),
@@ -36,31 +34,24 @@ class Game:
             'particle/particle': Animation(load_images('particles/particle'), img_dur=PARTICLE_ANIMATION_DURATION, loop=False),
         }
         
-        # Setup music
         self.music = pygame.mixer.Sound(MUSIC)
         self.music.set_volume(0.05)
         
-        # Initialize environment
         self.environment = Environment(self, self.display)
         
     def run(self):
-        # Start playing music
         self.music.play(-1)
         
         while True:
-            # Reset agent's frame-specific data
             self.agent.reset_frame_data()
             
-            # Handle input events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 else:
-                    # Pass all other events to the agent
                     self.agent.process_event(event)
             
-            # Process action button presses
             if self.agent.is_action_pressed('jump'):
                 self.environment.player.jump()
             if self.agent.is_action_released('jump'):
@@ -70,13 +61,10 @@ class Game:
             if self.agent.is_action_pressed('grab') and hasattr(self.environment.player, 'slide'):
                 self.environment.player.slide()
             
-            # Update environment with horizontal movement
             self.environment.update(self.agent.get_horizontal_movement())
             
-            # Render everything in the environment
             self.environment.render(self.display, debug=True)
             
-            # Scale and blit the display to the screen
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0))
             pygame.display.update()
             self.clock.tick(FPS)

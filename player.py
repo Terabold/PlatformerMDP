@@ -2,8 +2,7 @@ import math
 import random
 from Constants import *
 import pygame
-from scripts.particle import Particle
-from scripts.deathanim import death
+
 class Player:
     def __init__(self, game, pos, size=PLAYER_SIZE):
         self.game = game
@@ -51,18 +50,25 @@ class Player:
         self.dash_count = 2
         self.dash_directions.clear()
         self.wall_slide = False
-
-        # for _ in range(15):
-        #     angle = random.random() * math.pi * 2
-        #     speed = random.uniform(0.5, 2)
-        #     velocity = [math.cos(angle) * speed, math.sin(angle) * speed]
-            
-        #     self.game.particles.append(
-        #         Particle(self.game, 'particle', 
-        #                 [self.pos[0] + self.size[0] // 2, self.pos[1] + self.size[1] // 2], 
-        #                 velocity=velocity, 
-        #                 frame=random.randint(0, 7))
-        #     )
+        
+        # Create reset particles
+        self.create_reset_particles()
+    
+    def create_reset_particles(self):
+        # Create particles for death/reset effect
+        environment = self.game.environment
+        if environment:
+            for _ in range(15):
+                angle = random.random() * math.pi * 2
+                speed = random.uniform(0.5, 2)
+                velocity = [math.cos(angle) * speed, math.sin(angle) * speed]
+                
+                environment.create_particle(
+                    'particle', 
+                    [self.pos[0] + self.size[0] // 2, self.pos[1] + self.size[1] // 2], 
+                    velocity=velocity, 
+                    frame=random.randint(0, 7)
+                )
 
     def rect(self):
         return pygame.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
@@ -194,17 +200,19 @@ class Player:
                 self.velocity[1] = 0
             
             # Create trail particles during dash
-            # if self.dashing % 2 == 0:
-            #     pvelocity = [
-            #         -direction_x * random.random() * 3, 
-            #         -direction_y * random.random() * 3
-            #     ]
-            #     self.game.particles.append(
-            #         Particle(self.game, 'particle', 
-            #                 self.rect().center, 
-            #                 velocity=pvelocity, 
-            #                 frame=random.randint(0, 7))
-            #     )
+            if self.dashing % 2 == 0:
+                pvelocity = [
+                    -direction_x * random.random() * 3, 
+                    -direction_y * random.random() * 3
+                ]
+                environment = self.game.environment
+                if environment:
+                    environment.create_particle(
+                        'particle', 
+                        self.rect().center, 
+                        velocity=pvelocity, 
+                        frame=random.randint(0, 7)
+                    )
         
         # Apply friction when not dashing
         if abs(self.dashing) <= PLAYER_DASH_DURATION - 10:
@@ -252,11 +260,17 @@ class Player:
                 
         # Regular jump
         elif self.jumps:
-            keys = pygame.key.get_pressed()
+            # Get agent's input for directional input
+            agent = self.game.agent
+            is_up_pressed = False
+            
+            # Safely access agent movement
+            if agent and hasattr(agent, 'movement'):
+                is_up_pressed = agent.movement[1] < 0
             
             # Base jump power with up-key boost
             jump_power = -PLAYER_JUMP_POWER
-            if keys[KEY_UP]:
+            if is_up_pressed:
                 jump_power *= 1.2
             
             # Set jump velocity
@@ -285,24 +299,29 @@ class Player:
         # Don't allow dash if no dashes left
         if self.dash_count <= 0:
             return False
-            
-        # Determine dash direction from keyboard input
-        keys = pygame.key.get_pressed()
+        
+        # Get the agent's current movement input
+        agent = self.game.agent
         dash_direction = [0, 0]
         
-        # Horizontal direction
-        if keys[KEY_LEFT]:
+        # # Safe way to get movement without hasattr
+        # try:
+            # Get horizontal direction
+        if agent.movement[0] < 0:
             dash_direction[0] = -1
-        elif keys[KEY_RIGHT]:
+        elif agent.movement[0] > 0:
             dash_direction[0] = 1
-        
-        # Vertical direction
-        if keys[KEY_UP]:
+            
+        # Get vertical direction
+        if agent.movement[1] < 0:
             dash_direction[1] = -1.6
-        elif keys[KEY_DOWN]:
+        elif agent.movement[1] > 0:
             dash_direction[1] = 1
+        # except (AttributeError, IndexError):
+        #     # If agent doesn't have movement attribute or it's not properly structured
+        #     pass
         
-        # Default to current facing direction if no keys pressed
+        # Default to current facing direction if no movement input
         if dash_direction == [0, 0]:
             dash_direction[0] = -1 if self.flip else 1
         
@@ -330,70 +349,75 @@ class Player:
         self.dash_count -= 1
         
         # Create dash particles
-        # self._create_dash_particles(dash_direction)
+        self._create_dash_particles(dash_direction)
         
         return True
         
-    # def _create_dash_particles(self, dash_direction):
-    #     for i in range(PARTICLE_COUNT_DASH): 
-    #         angle = random.random() * math.pi * 2
-    #         speed = random.random() * (PARTICLE_SPEED_MAX * 1.5 - PARTICLE_SPEED_MIN) + PARTICLE_SPEED_MIN
-    #         pvelocity = [math.cos(angle) * speed, math.sin(angle) * speed]
-    #         offset = [
-    #             dash_direction[0] * 5 if dash_direction[0] != 0 else 0,
-    #             dash_direction[1] * 5 if dash_direction[1] != 0 else 0
-    #         ]
-    #         self.game.particles.append(
-    #             Particle(self.game, 'particle', 
-    #                     [self.rect().centerx + offset[0], self.rect().centery + offset[1]], 
-    #                     velocity=pvelocity, 
-    #                     frame=random.randint(0, 7))
-    #         )
+    def _create_dash_particles(self, dash_direction):
+        environment = self.game.environment
+        if not environment:
+            return
+            
+        # Create dash trail particles
+        for i in range(PARTICLE_COUNT_DASH): 
+            angle = random.random() * math.pi * 2
+            speed = random.random() * (PARTICLE_SPEED_MAX * 1.5 - PARTICLE_SPEED_MIN) + PARTICLE_SPEED_MIN
+            pvelocity = [math.cos(angle) * speed, math.sin(angle) * speed]
+            offset = [
+                dash_direction[0] * 5 if dash_direction[0] != 0 else 0,
+                dash_direction[1] * 5 if dash_direction[1] != 0 else 0
+            ]
+            environment.create_particle(
+                'particle', 
+                [self.rect().centerx + offset[0], self.rect().centery + offset[1]], 
+                velocity=pvelocity, 
+                frame=random.randint(0, 7)
+            )
         
-    #     # Create impact particles in opposite direction of dash
-    #     impact_offset = [0, 0]
+        # Create impact particles in opposite direction of dash
+        impact_offset = [0, 0]
     
-    #     # Determine offset based on dash direction
-    #     if dash_direction[0] < 0:  # Dashing left
-    #         impact_offset[0] = self.size[0]
-    #     elif dash_direction[0] > 0:  # Dashing right
-    #         impact_offset[0] = -self.size[0]
+        # Determine offset based on dash direction
+        if dash_direction[0] < 0:  # Dashing left
+            impact_offset[0] = self.size[0]
+        elif dash_direction[0] > 0:  # Dashing right
+            impact_offset[0] = -self.size[0]
             
-    #     if dash_direction[1] < 0:  # Dashing up
-    #         impact_offset[1] = self.size[1]
-    #     elif dash_direction[1] > 0:  # Dashing down
-    #         impact_offset[1] = -self.size[1]
+        if dash_direction[1] < 0:  # Dashing up
+            impact_offset[1] = self.size[1]
+        elif dash_direction[1] > 0:  # Dashing down
+            impact_offset[1] = -self.size[1]
         
-    #     # Create burst of particles for impact effect
-    #     impact_count = 12
+        # Create burst of particles for impact effect
+        impact_count = 12
         
-        # for i in range(impact_count):
-        #     # Calculate particle angle based on impact direction
-        #     if dash_direction[0] != 0:
-        #         angle_min = math.pi * 0.75 if dash_direction[0] > 0 else -math.pi * 0.25
-        #         angle_max = -math.pi * 0.75 if dash_direction[0] > 0 else math.pi * 0.25
-        #         angle = angle_min + (angle_max - angle_min) * (i / impact_count)
-        #     elif dash_direction[1] != 0:
-        #         angle_min = 0 if dash_direction[1] > 0 else math.pi
-        #         angle_max = math.pi if dash_direction[1] > 0 else math.pi * 2
-        #         angle = angle_min + (angle_max - angle_min) * (i / impact_count)
-        #     else:
-        #         angle = random.random() * math.pi * 2
+        for i in range(impact_count):
+            # Calculate particle angle based on impact direction
+            if dash_direction[0] != 0:
+                angle_min = math.pi * 0.75 if dash_direction[0] > 0 else -math.pi * 0.25
+                angle_max = -math.pi * 0.75 if dash_direction[0] > 0 else math.pi * 0.25
+                angle = angle_min + (angle_max - angle_min) * (i / impact_count)
+            elif dash_direction[1] != 0:
+                angle_min = 0 if dash_direction[1] > 0 else math.pi
+                angle_max = math.pi if dash_direction[1] > 0 else math.pi * 2
+                angle = angle_min + (angle_max - angle_min) * (i / impact_count)
+            else:
+                angle = random.random() * math.pi * 2
             
-        #     # Calculate particle properties
-        #     speed = random.uniform(2.0, 3.5)
-        #     pvelocity = [math.cos(angle) * speed, math.sin(angle) * speed]
+            # Calculate particle properties
+            speed = random.uniform(2.0, 3.5)
+            pvelocity = [math.cos(angle) * speed, math.sin(angle) * speed]
             
-        #     # Calculate spawn position with offset and random variation
-        #     spawn_pos = [
-        #         self.rect().centerx + impact_offset[0] + random.uniform(-5, 5),
-        #         self.rect().centery + impact_offset[1] + random.uniform(-5, 5)
-        #     ]
+            # Calculate spawn position with offset and random variation
+            spawn_pos = [
+                self.rect().centerx + impact_offset[0] + random.uniform(-5, 5),
+                self.rect().centery + impact_offset[1] + random.uniform(-5, 5)
+            ]
             
-        #     # Create the impact particle
-        #     self.game.particles.append(
-        #         Particle(self.game, 'particle', 
-        #                 spawn_pos, 
-        #                 velocity=pvelocity, 
-        #                 frame=random.randint(0, 7))
-        #     )
+            # Create the impact particle
+            environment.create_particle(
+                'particle', 
+                spawn_pos, 
+                velocity=pvelocity, 
+                frame=random.randint(0, 7)
+            )

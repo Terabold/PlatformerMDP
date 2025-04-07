@@ -1,12 +1,23 @@
 
 import pygame
 
-def death(display):
-    transition_surf = pygame.Surface(display.get_size(), pygame.SRCALPHA)
-    transition_surf.fill((0, 0, 0, 0))  
+
+def reveal_effect(display, center_pos, radius, mode='expand'):
+
+    width, height = display.get_size()
+    transition_surf = pygame.Surface((width, height), pygame.SRCALPHA)
     
-    pygame.draw.circle(transition_surf, (0, 0, 0, 200), 
-                    (display.get_width() // 2, display.get_height() // 2), 
-                    max(0, display.get_height() - 10))
+    if mode == 'black':
+        # Full black screen
+        transition_surf.fill((0, 0, 0, 255))
+    else:
+        # Start with black
+        transition_surf.fill((0, 0, 0, 255))
+        
+        # Draw a transparent hole (circle)
+        if radius > 0:
+            pygame.draw.circle(transition_surf, (0, 0, 0, 0), center_pos, radius)
     
     display.blit(transition_surf, (0, 0))
+
+
