@@ -1,2 +1,11 @@
-later/entities.py
-later/Huma_Agent.py
+__pycache__/Constants.cpython-312.pyc
+__pycache__/environment.cpython-312.pyc
+__pycache__/game.cpython-312.pyc
+__pycache__/human_agent.cpython-312.pyc
+__pycache__/player.cpython-312.pyc
+scripts/__pycache__/Background.cpython-312.pyc
+scripts/__pycache__/deathanim.cpython-312.pyc
+scripts/__pycache__/tilemap.cpython-312.pyc
+scripts/__pycache__/utils.cpython-312.pyc
+
+

@@ -23,6 +23,8 @@ class Editor:
             'large_decor': load_images('tiles/large_decor'),
             'stone': load_images('tiles/stone'),
             'spawners': load_images('tiles/spawners'),
+            'spikes': load_images('tiles/spikes'),
+            'checkpoint': load_images('tiles/Checkpoint'),
         }
         
         self.movement = [False, False, False, False]
@@ -64,7 +66,9 @@ class Editor:
             current_tile_img.set_alpha(100)
             
             mpos = pygame.mouse.get_pos()
-            mpos = (mpos[0]/4, mpos[1]/3)
+            scale_x = DISPLAY_WIDTH / SCREEN_WIDTH
+            scale_y = DISPLAY_HEIGHT / SCREEN_HEIGHT
+            mpos = (mpos[0] * scale_x, mpos[1] * scale_y)
             tile_pos = (int((mpos[0] + self.scroll[0]) // self.tilemap.tile_size), int((mpos[1] + self.scroll[1]) // self.tilemap.tile_size))
             
             if self.ongrid:

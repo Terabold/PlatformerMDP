@@ -1,22 +1,8 @@
 import json
 
 import pygame
+from Constants import AUTOTILE_TYPES, AUTOTILE_MAP, NEIGHBOR_OFFSETS, PHYSICS_TILES
 
-AUTOTILE_MAP = {
-    tuple(sorted([(1, 0), (0, 1)])): 0,
-    tuple(sorted([(1, 0), (0, 1), (-1, 0)])): 1,
-    tuple(sorted([(-1, 0), (0, 1)])): 2, 
-    tuple(sorted([(-1, 0), (0, -1), (0, 1)])): 3,
-    tuple(sorted([(-1, 0), (0, -1)])): 4,
-    tuple(sorted([(-1, 0), (0, -1), (1, 0)])): 5,
-    tuple(sorted([(1, 0), (0, -1)])): 6,
-    tuple(sorted([(1, 0), (0, -1), (0, 1)])): 7,
-    tuple(sorted([(1, 0), (-1, 0), (0, 1), (0, -1)])): 8,
-}
-
-NEIGHBOR_OFFSETS = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0), (0, 0), (-1, 1), (0, 1), (1, 1)]
-PHYSICS_TILES = {'grass', 'stone'}
-AUTOTILE_TYPES = {'grass', 'stone'}
 
 class Tilemap:
     def __init__(self, game, tile_size=16):
@@ -76,6 +62,46 @@ class Tilemap:
         if tile_loc in self.tilemap:
             if self.tilemap[tile_loc]['type'] in PHYSICS_TILES:
                 return self.tilemap[tile_loc]
+    
+    def spike_check(self, entity_rect):
+        tile_x1 = int(entity_rect.left // self.tile_size)
+        tile_y1 = int(entity_rect.top // self.tile_size)
+        tile_x2 = int(entity_rect.right // self.tile_size)
+        tile_y2 = int(entity_rect.bottom // self.tile_size)
+        
+        for x in range(tile_x1, tile_x2 + 1):
+            for y in range(tile_y1, tile_y2 + 1):
+                tile_loc = f"{x};{y}"
+                if tile_loc in self.tilemap:
+                    if self.tilemap[tile_loc]['type'] == 'spikes':
+                        spike_rect = pygame.Rect(
+                            self.tilemap[tile_loc]['pos'][0] * self.tile_size,
+                            self.tilemap[tile_loc]['pos'][1] * self.tile_size,
+                            self.tile_size, self.tile_size
+                        )
+                        if entity_rect.colliderect(spike_rect):
+                            return True
+        return False
+    
+    def finishline_check(self, entity_rect):
+        tile_x1 = int(entity_rect.left // self.tile_size)
+        tile_y1 = int(entity_rect.top // self.tile_size)
+        tile_x2 = int(entity_rect.right // self.tile_size)
+        tile_y2 = int(entity_rect.bottom // self.tile_size)
+        
+        for x in range(tile_x1, tile_x2 + 1):
+            for y in range(tile_y1, tile_y2 + 1):
+                tile_loc = f"{x};{y}"
+                if tile_loc in self.tilemap:
+                    if self.tilemap[tile_loc]['type'] == 'finish':
+                        finish_rect = pygame.Rect(
+                            self.tilemap[tile_loc]['pos'][0] * self.tile_size,
+                            self.tilemap[tile_loc]['pos'][1] * self.tile_size,
+                            self.tile_size, self.tile_size
+                        )
+                        if entity_rect.colliderect(finish_rect):
+                            return True
+        return False
     
     def physics_rects_around(self, pos):
         rects = []
