@@ -30,7 +30,7 @@ class Environment:
         
         self.death_animation = DeathAnimation(game)
 
-    def update(self, agent):
+    def update(self):
         reset_player = self.death_animation.update()
         if reset_player is True:
             self.player.pos = self.default_pos.copy()
@@ -42,14 +42,8 @@ class Environment:
         self.clouds.update()
         
         if not self.death_animation.is_dying:
-            movement_x = 0
-            if hasattr(agent, 'movement'):
-                if agent.movement[0]:  
-                    movement_x -= 1
-                if agent.movement[1]: 
-                    movement_x += 1
-                
-            self.player.update(self.tilemap, (movement_x, 0))
+            self.player.handle_movement(self.tilemap)
+            
             if self.tilemap.spike_check(self.player.rect()):
                 self.trigger_death()
         
@@ -107,7 +101,7 @@ class Environment:
 
     def handle_finish(self):
         if self.tilemap.finishline_check(self.player.rect()):
-            pass 
+            pass  
     
     def reset(self):
         self.player.pos = self.default_pos.copy()
@@ -117,46 +111,24 @@ class Environment:
         self.death_animation.start(None) 
     
     def move(self, action, state):
-        """
-        Process agent actions and states to control the player
-        
-        Actions:
-        0 = no movement
-        1 = jump
-        2 = crouch/down
-        3 = left
-        4 = right
-        5 = jump + left
-        6 = jump + right
-        7 = down + left
-        8 = down + right
-        
-        States:
-        0 = normal mode
-        1 = dash mode
-        2 = grab mode
-        """
-        # Reset movement first to avoid conflicting flags
         self.player.stop_movement()
         
-        # No action, stop movement
         if action is None:
             return
         
-        # Process horizontal movement
-        if action in [3, 5, 7]:  # Left actions
+        if action in [3, 5, 7]:  
             self.player.move_left(True)
-        elif action in [4, 6, 8]:  # Right actions
+        elif action in [4, 6, 8]:  
             self.player.move_right(True)
         
-        # Process vertical movement
-        if action in [1, 5, 6]:  # Jump actions
+        if action in [1, 5, 6]:  
             self.player.start_jump(True)
+        elif action in [2, 7, 8]:  
+            self.player.start_grab(True)  
         
-        # Process state (dash, grab)
-        if state == 1:  # Dash mode
+        if state == 1:  
             self.player.start_dash(True)
-        elif state == 2:  # Grab mode (not implemented yet)
+        elif state == 2:  
             self.player.start_grab(True)
         
     def create_particle(self, particle_type, pos, velocity=None, frame=0):

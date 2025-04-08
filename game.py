@@ -10,7 +10,7 @@ class Game:
         pygame.init()
         pygame.display.set_caption(GAME_TITLE)
         
-        self.screen = screen 
+        self.screen = screen if screen else pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.display = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self.clock = pygame.time.Clock()
         
@@ -47,7 +47,6 @@ class Game:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                
             
             action = self.agent.get_action()
             state = self.agent.get_state()
