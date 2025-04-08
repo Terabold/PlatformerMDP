@@ -1,109 +1,109 @@
 import pygame
-from Constants import *
 
-class HumanAgent:
+class BaseHumanAgent:
     def __init__(self):
-        self.movement = [0, 0]  
-        
-        self.actions = {
-            'jump': False,
-            'dash': False,
-            'grab': False
-        }
-        
+        self.action = 0
         self.controls = {
-            'left': KEY_LEFT,
-            'right': KEY_RIGHT,
-            'up': KEY_UP,
-            'down': KEY_DOWN,
-            'jump': KEY_JUMP,
-            'dash': KEY_DASH,
-            'grab': KEY_GRAB  # Assuming slide is the grab action
+            'jump': None,  # Changed from 'forward' to 'jump'
+            'backward': None,
+            'left': None,
+            'right': None
         }
-        
-        self.key_pressed = {action: False for action in self.actions}
-        self.key_released = {action: False for action in self.actions}
+        self.state = {
+            'normal': None,
+            'dash': None,
+            'grab': None,
+        }
+        # Added movement tracking
+        self.movement = [0, 0]  # [horizontal, vertical]
 
-    def process_event(self, event):
-        if event.type == pygame.KEYDOWN:
-            if event.key == self.controls['left']:
-                self.movement[0] = -1
-            if event.key == self.controls['right']:
-                self.movement[0] = 1
-            if event.key == self.controls['up']:
-                self.movement[1] = -1
-            if event.key == self.controls['down']:
-                self.movement[1] = 1
-                
-            if event.key == self.controls['jump']:
-                self.actions['jump'] = True
-                self.key_pressed['jump'] = True
-            if event.key == self.controls['dash']:
-                self.actions['dash'] = True
-                self.key_pressed['dash'] = True
-            if event.key == self.controls['grab']:
-                self.actions['grab'] = True
-                self.key_pressed['grab'] = True
-                
-        elif event.type == pygame.KEYUP:
-            if event.key == self.controls['left'] and self.movement[0] == -1:
-                self.movement[0] = 0
-            if event.key == self.controls['right'] and self.movement[0] == 1:
-                self.movement[0] = 0
-            if event.key == self.controls['up'] and self.movement[1] == -1:
-                self.movement[1] = 0
-            if event.key == self.controls['down'] and self.movement[1] == 1:
-                self.movement[1] = 0
-                
-            if event.key == self.controls['jump']:
-                self.actions['jump'] = False
-                self.key_released['jump'] = True
-            if event.key == self.controls['dash']:
-                self.actions['dash'] = False
-                self.key_released['dash'] = True
-            if event.key == self.controls['grab']:
-                self.actions['grab'] = False
-                self.key_released['grab'] = True
-
-    def update(self):
+    def get_state(self):
         keys = pygame.key.get_pressed()
         
-        self.movement[0] = 0
-        if keys[self.controls['left']]:
+        # Initialize state to normal (0) by default
+        action_state = 0
+        
+        # Check for dash and grab keys, ignoring normal since it's None
+        if self.state['dash'] is not None and keys[self.state['dash']]:
+            action_state = 1
+        elif self.state['grab'] is not None and keys[self.state['grab']]:
+            action_state = 2
+            
+        return action_state
+    
+    def get_action(self):
+        keys = pygame.key.get_pressed()
+        
+        # Reset movement tracking
+        self.movement = [0, 0]
+        
+        # Get keys status
+        jump = keys[self.controls['jump']]
+        backward = keys[self.controls['backward']]
+        left = keys[self.controls['left']]
+        right = keys[self.controls['right']]
+        
+        # Update movement tracking
+        if left:
             self.movement[0] = -1
-        if keys[self.controls['right']]:
+        elif right:
             self.movement[0] = 1
             
-        self.movement[1] = 0
-        if keys[self.controls['up']]:
-            self.movement[1] = -1
-        if keys[self.controls['down']]:
-            self.movement[1] = 1
+        if jump:
+            self.movement[1] = -1  # Up
+        elif backward:
+            self.movement[1] = 1   # Down
+        
+        # Determine action based on key combinations
+        if jump and left:
+            self.action = 5  # Jump + Left
+        elif jump and right:
+            self.action = 6  # Jump + Right
+        elif backward and left:
+            self.action = 7  # Down + Left
+        elif backward and right:
+            self.action = 8  # Down + Right
+        elif jump:
+            self.action = 1  # Jump
+        elif backward:
+            self.action = 2  # Down
+        elif left:
+            self.action = 3  # Left
+        elif right:
+            self.action = 4  # Right
+        else:
+            self.action = 0  # No action
             
-        self.actions['jump'] = keys[self.controls['jump']]
-        self.actions['dash'] = keys[self.controls['dash']]
-        self.actions['grab'] = keys[self.controls['grab']]
-    
-    def get_movement(self):
-        return self.movement
-    
-    def get_horizontal_movement(self):
-        return [self.movement[0] == -1, self.movement[0] == 1]
-    
-    def is_action_pressed(self, action):
-        result = self.key_pressed[action]
-        self.key_pressed[action] = False 
-        return result
-    
-    def is_action_released(self, action):
-        result = self.key_released[action]
-        self.key_released[action] = False  
-        return result
-    
-    def is_action_held(self, action):
-        return self.actions[action]
-    
-    def reset_frame_data(self):
-        for action in self.actions:
-            self.key_pressed[action] = False
-            self.key_released[action] = False
+        return self.action
+
+class HumanAgentWASD(BaseHumanAgent):
+    def __init__(self):
+        super().__init__()
+        self.controls = {
+            'jump': pygame.K_SPACE,  # Jump with space
+            'backward': pygame.K_s,
+            'left': pygame.K_a,
+            'right': pygame.K_d
+        }
+
+        self.state = {
+            'normal': None,
+            'dash': pygame.K_LSHIFT,
+            'grab': pygame.K_v,
+        }
+
+class HumanAgentArrows(BaseHumanAgent):
+    def __init__(self):
+        super().__init__()
+        self.controls = {
+            'jump': pygame.K_UP,  # Jump with up arrow
+            'backward': pygame.K_DOWN,
+            'left': pygame.K_LEFT,
+            'right': pygame.K_RIGHT
+        }
+
+        self.state = {
+            'normal': None,
+            'dash': pygame.K_RSHIFT,
+            'grab': pygame.K_RCTRL,
+        }

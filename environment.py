@@ -1,3 +1,4 @@
+# Modified portion of environment.py
 import pygame
 from Constants import *
 from scripts.utils import load_image, load_images, Animation
@@ -5,15 +6,17 @@ from scripts.tilemap import Tilemap
 from scripts.clouds import Clouds
 from player import Player
 from scripts.particle import Particle
+from scripts.deathanim import DeathAnimation
 import random
-from scripts.deathanim import reveal_effect
 
 class Environment:
-    def __init__(self, game, display):
+    def __init__(self, game, display, player1=None, player2=None):
         self.game = game
         self.display = display
         self.assets = game.assets
-        
+
+        self.player1 = player1
+
         self.clouds = Clouds(self.assets['clouds'], count=CLOUD_COUNT)
         self.tilemap = Tilemap(game, tile_size=TILE_SIZE)
         self.tilemap.load(DEFAULT_MAP_PATH)
@@ -25,58 +28,26 @@ class Environment:
         self.particles = []
         self.scroll = [10, 10]
         
-        # Reveal animation settings
-        self.reveal_timer = 0
-        self.death_anim_duration = 8
-        self.black_screen_duration = 23  
-        self.respawn_anim_duration = 45  
-        self.total_anim_duration = self.death_anim_duration + self.black_screen_duration + self.respawn_anim_duration
-        
-        self.death_pos = None  
-        self.max_radius = 300  
-        self.min_radius = 0   
-        self.death_radius = self.max_radius  
-        self.respawn_radius = self.min_radius  
+        self.death_animation = DeathAnimation(game)
 
-        self.revealing = False  
-        self.is_dying = False  
-        
-        self.start_reveal_animation()
-
-    def update(self, movement):
-        # Handle the reveal animation
-        if self.revealing:
-            self.reveal_timer += 1
-            
-            # Phase 1: Shrinking hole animation (death)
-            if self.reveal_timer <= self.death_anim_duration:
-                progress = self.reveal_timer / self.death_anim_duration
-                self.death_radius = self.max_radius * (1 - progress)
-            
-            # Phase 3: Expanding hole animation (respawn)
-            elif self.reveal_timer > self.death_anim_duration + self.black_screen_duration:
-                elapsed_in_phase3 = self.reveal_timer - (self.death_anim_duration + self.black_screen_duration)
-                progress = elapsed_in_phase3 / self.respawn_anim_duration
-                self.respawn_radius = self.max_radius * progress
-            
-            # End animation once complete
-            if self.reveal_timer >= self.total_anim_duration:
-                self.revealing = False
-                self.is_dying = False
-                self.reveal_timer = 0
+    def update(self, agent):
+        reset_player = self.death_animation.update()
+        if reset_player is True:
+            self.player.pos = self.default_pos.copy()
+            self.player.reset()
         
         self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / CAMERA_SPEED
         self.scroll[1] += (self.player.rect().centery - self.display.get_height() * 0.65 - self.scroll[1]) / CAMERA_SPEED
         
         self.clouds.update()
         
-        # Only process movement if not dying
-        if not self.is_dying:
+        if not self.death_animation.is_dying:
             movement_x = 0
-            if movement[0]:  
-                movement_x -= 1
-            if movement[1]: 
-                movement_x += 1
+            if hasattr(agent, 'movement'):
+                if agent.movement[0]:  
+                    movement_x -= 1
+                if agent.movement[1]: 
+                    movement_x += 1
                 
             self.player.update(self.tilemap, (movement_x, 0))
             if self.tilemap.spike_check(self.player.rect()):
@@ -92,28 +63,16 @@ class Environment:
         return (int(self.scroll[0]), int(self.scroll[1]))
     
     def trigger_death(self):
-        if not self.is_dying:
-            self.is_dying = True
-            
-            self.death_pos = self.player.rect().center
+        if not self.death_animation.is_dying:
+            self.death_animation.start(self.player.rect().center)
             
             for _ in range(20):
                 self.particles.append(
                     Particle(self.game, 'particle', 
-                            self.death_pos, 
+                            self.death_animation.death_pos, 
                             velocity=[random.uniform(-2, 2), random.uniform(-2, 2)], 
                             frame=random.randint(0, 7))
                 )
-            
-            self.player.pos = self.default_pos.copy()  
-            self.start_reveal_animation()
-            self.reset()
-    
-    def start_reveal_animation(self):
-        self.revealing = True
-        self.reveal_timer = 0
-        self.death_radius = self.max_radius
-        self.respawn_radius = self.min_radius
     
     def render(self, display, debug=False):
         render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
@@ -144,53 +103,61 @@ class Environment:
             
         display.blit(temp_surface, (0, 0))
         
-        if self.revealing:
-            if self.reveal_timer <= self.death_anim_duration and self.death_pos:
-                death_screen_pos = (
-                    self.death_pos[0] - render_scroll[0],
-                    self.death_pos[1] - render_scroll[1]
-                )
-                self.draw_reveal(display, death_screen_pos, self.death_radius, 'shrink')
-            
-            elif self.reveal_timer <= self.death_anim_duration + self.black_screen_duration:
-                self.draw_reveal(display, (0, 0), 0, 'black')
-            
-            else:
-                spawn_screen_pos = (
-                    self.default_pos[0] - render_scroll[0],
-                    self.default_pos[1] - render_scroll[1]
-                )
-                self.draw_reveal(display, spawn_screen_pos, self.respawn_radius, 'expand')
-
-    def draw_reveal(self, display, center_pos, radius, mode):
-        """Draw the reveal effect"""
-        width, height = display.get_size()
-        transition_surf = pygame.Surface((width, height), pygame.SRCALPHA)
-        
-        if mode == 'black':
-            # Full black screen
-            transition_surf.fill((0, 0, 0, 255))
-        else:
-            # Start with black
-            transition_surf.fill((0, 0, 0, 255))
-            
-            # Draw a transparent hole (circle)
-            if radius > 0:
-                pygame.draw.circle(transition_surf, (0, 0, 0, 0), center_pos, radius)
-        
-        display.blit(transition_surf, (0, 0))
+        self.death_animation.render(display, self.scroll)
 
     def handle_finish(self):
         if self.tilemap.finishline_check(self.player.rect()):
-            pass  # You can implement finish line logic here
+            pass 
     
     def reset(self):
         self.player.pos = self.default_pos.copy()
         self.player.reset()
         self.particles.clear()
         self.scroll = [10, 10]
-        self.is_dying = False
-        self.start_reveal_animation()
+        self.death_animation.start(None) 
+    
+    def move(self, action, state):
+        """
+        Process agent actions and states to control the player
+        
+        Actions:
+        0 = no movement
+        1 = jump
+        2 = crouch/down
+        3 = left
+        4 = right
+        5 = jump + left
+        6 = jump + right
+        7 = down + left
+        8 = down + right
+        
+        States:
+        0 = normal mode
+        1 = dash mode
+        2 = grab mode
+        """
+        # Reset movement first to avoid conflicting flags
+        self.player.stop_movement()
+        
+        # No action, stop movement
+        if action is None:
+            return
+        
+        # Process horizontal movement
+        if action in [3, 5, 7]:  # Left actions
+            self.player.move_left(True)
+        elif action in [4, 6, 8]:  # Right actions
+            self.player.move_right(True)
+        
+        # Process vertical movement
+        if action in [1, 5, 6]:  # Jump actions
+            self.player.start_jump(True)
+        
+        # Process state (dash, grab)
+        if state == 1:  # Dash mode
+            self.player.start_dash(True)
+        elif state == 2:  # Grab mode (not implemented yet)
+            self.player.start_grab(True)
         
     def create_particle(self, particle_type, pos, velocity=None, frame=0):
         if velocity is None:

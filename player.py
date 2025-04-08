@@ -18,7 +18,6 @@ class Player:
         self.anim_offset = PLAYER_ANIMATION_OFFSET
         self.flip = False
         self.set_action('idle')
-        self.last_movement = [0, 0]
         
         # Movement mechanics
         self.air_time = 0
@@ -37,6 +36,13 @@ class Player:
         
         # Stamina for abilities
         self.stamina = 110
+        
+        # Input movement state
+        self.moving_left = False
+        self.moving_right = False
+        self.is_jumping = False
+        self.is_dashing = False
+        self.is_grabbing = False
     
     def reset(self):
         self.action = ''
@@ -50,6 +56,11 @@ class Player:
         self.dash_count = 2
         self.dash_directions.clear()
         self.wall_slide = False
+        self.moving_left = False
+        self.moving_right = False
+        self.is_jumping = False
+        self.is_dashing = False
+        self.is_grabbing = False
         
         # Create reset particles
         self.create_reset_particles()
@@ -78,12 +89,30 @@ class Player:
             self.action = action
             self.animation = self.game.assets[self.type + '/' + self.action].copy()
     
-    def update(self, tilemap, movement=(0, 0)):
+    def update(self, tilemap, movement_input=(0, 0)):
         # Reset collisions
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
         
+        # Calculate horizontal movement based on input flags
+        movement_x = 0
+        if self.moving_right:
+            movement_x += 1
+        if self.moving_left:
+            movement_x -= 1
+            
+        # Apply movement speed if not dashing
+        if abs(self.dashing) <= PLAYER_DASH_DURATION - 10:
+            if movement_x != 0:
+                self.velocity[0] = movement_x * PLAYER_SPEED
+            else:
+                # Apply friction
+                if self.velocity[0] > 0:
+                    self.velocity[0] = max(self.velocity[0] - FRICTION, 0)
+                elif self.velocity[0] < 0:
+                    self.velocity[0] = min(self.velocity[0] + FRICTION, 0)
+        
         # Calculate movement for this frame
-        frame_movement = (movement[0] + self.velocity[0], movement[1] + self.velocity[1])
+        frame_movement = [self.velocity[0], self.velocity[1]]
         
         # Handle horizontal movement and collision
         self.pos[0] += frame_movement[0]
@@ -111,13 +140,11 @@ class Player:
                     self.collisions['up'] = True
                 self.pos[1] = entity_rect.y
         
-        # Update facing direction
-        if movement[0] > 0:
+        # Update facing direction based on movement
+        if movement_x > 0:
             self.flip = False
-        if movement[0] < 0:
+        elif movement_x < 0:
             self.flip = True
-        
-        self.last_movement = movement
         
         # Apply gravity
         self.velocity[1] = min(MAX_FALL_SPEED, self.velocity[1] + 0.1)
@@ -126,6 +153,7 @@ class Player:
         if self.collisions['down'] or self.collisions['up']:
             self.velocity[1] = 0
         
+        # Air time tracking
         self.air_time += 1
         if self.collisions['down']:
             self.air_time = 0
@@ -133,11 +161,13 @@ class Player:
             self.jump_timer = 0
             self.jump_strength_multiplier = 1.0
         
+        # Stamina management
         if self.air_time < PLAYER_AIR_TIME_THRESHOLD:
             self.stamina = 110
         else:
             self.stamina -= 1/6  
         
+        # Wall slide handling
         self.wall_slide = False
         if (self.collisions['right'] or self.collisions['left']) and self.air_time > PLAYER_AIR_TIME_THRESHOLD:
             self.wall_slide = True
@@ -153,7 +183,7 @@ class Player:
         if not self.wall_slide:
             if self.air_time > PLAYER_AIR_TIME_THRESHOLD:
                 self.set_action('jump')
-            elif movement[0] != 0:
+            elif movement_x != 0:
                 self.set_action('run')
             else:
                 self.set_action('idle')
@@ -164,7 +194,7 @@ class Player:
             self.dash_directions.clear()
         
         # Update jump mechanics
-        if self.jump_held and self.jump_timer < self.max_jump_time:
+        if self.is_jumping and self.jump_held and self.jump_timer < self.max_jump_time:
             self.jump_timer += 1
             self.jump_strength_multiplier = max(0.5, 1.0 - (self.jump_timer / (self.max_jump_time * 2)))
         
@@ -213,13 +243,6 @@ class Player:
                         velocity=pvelocity, 
                         frame=random.randint(0, 7)
                     )
-        
-        # Apply friction when not dashing
-        if abs(self.dashing) <= PLAYER_DASH_DURATION - 10:
-            if self.velocity[0] > 0:
-                self.velocity[0] = max(self.velocity[0] - FRICTION, 0)
-            else:
-                self.velocity[0] = min(self.velocity[0] + FRICTION, 0)
     
     def render(self, surf, offset=(0, 0)):
         # Select animation frame
@@ -232,6 +255,41 @@ class Player:
         surf.blit(pygame.transform.flip(img, self.flip, False), 
                 (self.pos[0] - offset[0] + self.anim_offset[0], 
                 self.pos[1] - offset[1] + self.anim_offset[1]))
+    
+    # Movement API methods
+    def move_left(self, active=True):
+        self.moving_left = active
+        if active:
+            self.flip = True
+            
+    def move_right(self, active=True):
+        self.moving_right = active
+        if active:
+            self.flip = False
+            
+    def start_jump(self, active=True):
+        self.is_jumping = active
+        if active:
+            self.jump()
+        else:
+            self.end_jump()
+            
+    def start_dash(self, active=True):
+        self.is_dashing = active
+        if active and self.dash_count > 0:
+            self.dash()
+            
+    def start_grab(self, active=True):
+        self.is_grabbing = active
+        # Grab mechanics to be implemented
+            
+    def stop_movement(self):
+        self.moving_left = False
+        self.moving_right = False
+        self.is_jumping = False
+        self.is_dashing = False
+        self.is_grabbing = False
+        self.end_jump()
     
     def jump(self):        
         if self.wall_slide and self.stamina > 0:
@@ -260,27 +318,17 @@ class Player:
                 
         # Regular jump
         elif self.jumps:
-            # Get agent's input for directional input
-            agent = self.game.agent
-            is_up_pressed = False
-            
-            # Safely access agent movement
-            if agent and hasattr(agent, 'movement'):
-                is_up_pressed = agent.movement[1] < 0
-            
-            # Base jump power with up-key boost
+            # Base jump power
             jump_power = -PLAYER_JUMP_POWER
-            if is_up_pressed:
-                jump_power *= 1.2
             
             # Set jump velocity
             self.velocity[1] = jump_power
             
-            # Add slight horizontal movement during jump
-            if self.flip and self.last_movement[0] < 0:
-                self.velocity[0] = -1
-            elif not self.flip and self.last_movement[0] > 0:
-                self.velocity[0] = 1
+            # Add horizontal velocity if moving
+            if self.moving_left:
+                self.velocity[0] = -PLAYER_SPEED * 1.1
+            elif self.moving_right:
+                self.velocity[0] = PLAYER_SPEED * 1.1
             
             self.jumps -= 1
             self.air_time = PLAYER_AIR_TIME_THRESHOLD + 1
@@ -296,32 +344,26 @@ class Player:
         self.jump_strength_multiplier = 1.0
     
     def dash(self):
-        # Don't allow dash if no dashes left
         if self.dash_count <= 0:
             return False
         
-        # Get the agent's current movement input
-        agent = self.game.agent
+        # Get dash direction from current input flags
         dash_direction = [0, 0]
         
-        # # Safe way to get movement without hasattr
-        # try:
-            # Get horizontal direction
-        if agent.movement[0] < 0:
+        # Initialize direction based on movement flags
+        if self.moving_left:
             dash_direction[0] = -1
-        elif agent.movement[0] > 0:
+        elif self.moving_right:
             dash_direction[0] = 1
-            
-        # Get vertical direction
-        if agent.movement[1] < 0:
-            dash_direction[1] = -1.6
-        elif agent.movement[1] > 0:
-            dash_direction[1] = 1
-        # except (AttributeError, IndexError):
-        #     # If agent doesn't have movement attribute or it's not properly structured
-        #     pass
         
-        # Default to current facing direction if no movement input
+        # Check for vertical input from keyboard
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]:
+            dash_direction[1] = -1.6  # Upward dash
+        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            dash_direction[1] = 1  # Downward dash
+        
+        # Default to facing direction if no specific direction
         if dash_direction == [0, 0]:
             dash_direction[0] = -1 if self.flip else 1
         
@@ -359,7 +401,7 @@ class Player:
             return
             
         # Create dash trail particles
-        for i in range(PARTICLE_COUNT_DASH): 
+        for _ in range(PARTICLE_COUNT_DASH): 
             angle = random.random() * math.pi * 2
             speed = random.random() * (PARTICLE_SPEED_MAX * 1.5 - PARTICLE_SPEED_MIN) + PARTICLE_SPEED_MIN
             pvelocity = [math.cos(angle) * speed, math.sin(angle) * speed]
@@ -370,54 +412,6 @@ class Player:
             environment.create_particle(
                 'particle', 
                 [self.rect().centerx + offset[0], self.rect().centery + offset[1]], 
-                velocity=pvelocity, 
-                frame=random.randint(0, 7)
-            )
-        
-        # Create impact particles in opposite direction of dash
-        impact_offset = [0, 0]
-    
-        # Determine offset based on dash direction
-        if dash_direction[0] < 0:  # Dashing left
-            impact_offset[0] = self.size[0]
-        elif dash_direction[0] > 0:  # Dashing right
-            impact_offset[0] = -self.size[0]
-            
-        if dash_direction[1] < 0:  # Dashing up
-            impact_offset[1] = self.size[1]
-        elif dash_direction[1] > 0:  # Dashing down
-            impact_offset[1] = -self.size[1]
-        
-        # Create burst of particles for impact effect
-        impact_count = 12
-        
-        for i in range(impact_count):
-            # Calculate particle angle based on impact direction
-            if dash_direction[0] != 0:
-                angle_min = math.pi * 0.75 if dash_direction[0] > 0 else -math.pi * 0.25
-                angle_max = -math.pi * 0.75 if dash_direction[0] > 0 else math.pi * 0.25
-                angle = angle_min + (angle_max - angle_min) * (i / impact_count)
-            elif dash_direction[1] != 0:
-                angle_min = 0 if dash_direction[1] > 0 else math.pi
-                angle_max = math.pi if dash_direction[1] > 0 else math.pi * 2
-                angle = angle_min + (angle_max - angle_min) * (i / impact_count)
-            else:
-                angle = random.random() * math.pi * 2
-            
-            # Calculate particle properties
-            speed = random.uniform(2.0, 3.5)
-            pvelocity = [math.cos(angle) * speed, math.sin(angle) * speed]
-            
-            # Calculate spawn position with offset and random variation
-            spawn_pos = [
-                self.rect().centerx + impact_offset[0] + random.uniform(-5, 5),
-                self.rect().centery + impact_offset[1] + random.uniform(-5, 5)
-            ]
-            
-            # Create the impact particle
-            environment.create_particle(
-                'particle', 
-                spawn_pos, 
                 velocity=pvelocity, 
                 frame=random.randint(0, 7)
             )

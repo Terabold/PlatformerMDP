@@ -3,7 +3,7 @@ import pygame
 from scripts.utils import load_image, load_images, Animation
 from environment import Environment
 from Constants import *
-from human_agent import HumanAgent  # Import the new HumanAgent class
+from human_agent import HumanAgentWASD  
 
 class Game:
     def __init__(self, screen=None):
@@ -14,7 +14,7 @@ class Game:
         self.display = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self.clock = pygame.time.Clock()
         
-        self.agent = HumanAgent()
+        self.agent = HumanAgentWASD()
         
         self.assets = {
             'decor': load_images('tiles/decor'),
@@ -42,26 +42,19 @@ class Game:
     def run(self):
         self.music.play(-1)
         
-        while True:
-            self.agent.reset_frame_data()
-            
+        while True:            
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                else:
-                    self.agent.process_event(event)
+                
             
-            if self.agent.is_action_pressed('jump'):
-                self.environment.player.jump()
-            if self.agent.is_action_released('jump'):
-                self.environment.player.end_jump()
-            if self.agent.is_action_pressed('dash'):
-                self.environment.player.dash()
-            if self.agent.is_action_pressed('grab') and hasattr(self.environment.player, 'slide'):
-                self.environment.player.slide()
+            action = self.agent.get_action()
+            state = self.agent.get_state()
+
+            self.environment.move(action, state)
             
-            self.environment.update(self.agent.get_horizontal_movement())
+            self.environment.update(self.agent)
             
             self.environment.render(self.display, debug=True)
             
