@@ -121,15 +121,10 @@ class Environment:
         elif action in [4, 6, 8]:  
             self.player.move_right(True)
         
-        if action in [1, 5, 6]:  
-            self.player.start_jump(True)
-        elif action in [2, 7, 8]:  
-            self.player.start_grab(True)  
-        
         if state == 1:  
-            self.player.start_dash(True)
+            self.player.start_jump(True, action)
         elif state == 2:  
-            self.player.start_grab(True)
+            self.player.start_dash(True, action)
         
     def create_particle(self, particle_type, pos, velocity=None, frame=0):
         if velocity is None:

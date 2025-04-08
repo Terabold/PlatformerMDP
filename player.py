@@ -67,7 +67,6 @@ class Player:
         self.create_reset_particles()
     
     def create_reset_particles(self):
-        # Create particles for death/reset effect
         environment = self.game.environment
         if environment:
             for _ in range(15):
@@ -258,17 +257,17 @@ class Player:
         if active:
             self.flip = False
             
-    def start_jump(self, active=True):
+    def start_jump(self, active=True, action=None):
         self.is_jumping = active
         if active:
-            self.jump()
+            self.jump(action)
         else:
             self.end_jump()
             
-    def start_dash(self, active=True):
+    def start_dash(self, active=True, action=None):
         self.is_dashing = active
         if active:
-            self.dash()
+            self.dash(action)
             
     def start_grab(self, active=True):
         self.is_grabbing = active
@@ -281,7 +280,7 @@ class Player:
         self.is_grabbing = False
         self.end_jump()
     
-    def jump(self):        
+    def jump(self, action=None):        
         if self.wall_slide and self.stamina > 20 and self.wall_jump_count < self.max_wall_jumps:
             wall_jump_horizontal = PLAYER_WALL_JUMP_HORIZONTAL * 0.8
             wall_jump_vertical = -PLAYER_WALL_JUMP_VERTICAL
@@ -309,11 +308,17 @@ class Player:
             
             self.velocity[1] = jump_power
             
-            if self.moving_left:
+            # Use action to determine horizontal movement during jump
+            if action in [3, 5, 7]:  # Left actions
                 self.velocity[0] = -PLAYER_SPEED * 1.1
-            elif self.moving_right:
+                self.flip = True
+            elif action in [4, 6, 8]:  # Right actions
                 self.velocity[0] = PLAYER_SPEED * 1.1
-            
+                self.flip = False
+            elif action == 1:  # Up action
+                # Just vertical jump, no horizontal velocity change
+                pass
+                
             self.jumps -= 1
             self.air_time = PLAYER_AIR_TIME_THRESHOLD + 1
             self.jump_held = True
@@ -326,22 +331,29 @@ class Player:
         self.jump_timer = 0
         self.jump_strength_multiplier = 1.0
     
-    def dash(self):
+    def dash(self, action=None):
         if self.dash_count <= 0:
             return False
         
         dash_direction = [0, 0]
         
-        if self.moving_left:
+        # Determine dash direction based on action
+        if action in [3, 5, 7]:  # Left actions
             dash_direction[0] = -1
-        elif self.moving_right:
+        elif action in [4, 6, 8]:  # Right actions
             dash_direction[0] = 1
         
-        if self.is_jumping:
-            dash_direction[1] = -1  
-        elif self.is_grabbing: 
-            dash_direction[1] = 1  
+        # Handle vertical direction based on action
+        if action in [5, 6]:  # Up-diagonal actions
+            dash_direction[1] = -1
+        elif action in [7, 8]:  # Down-diagonal actions
+            dash_direction[1] = 1
+        elif action == 1:  # Up action
+            dash_direction[1] = -1
+        elif action == 2:  # Down action
+            dash_direction[1] = 1
         
+        # If no direction is determined from action, use default based on player direction
         if dash_direction == [0, 0]:
             dash_direction[0] = -1 if self.flip else 1
         

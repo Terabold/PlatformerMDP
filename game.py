@@ -53,7 +53,7 @@ class Game:
 
             self.environment.move(action, state)
             
-            self.environment.update(self.agent)
+            self.environment.update()
             
             self.environment.render(self.display, debug=True)
             
