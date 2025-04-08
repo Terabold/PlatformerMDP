@@ -41,16 +41,6 @@ class BaseHumanAgent:
         left = keys[self.controls['left']]
         right = keys[self.controls['right']]
         
-        if left:
-            self.movement[0] = -1
-        elif right:
-            self.movement[0] = 1
-            
-        # if forward:
-        #     self.movement[1] = -1  
-        elif down:
-            self.movement[1] = 1  
-        
         if forward and left:
             self.action = 5 
         elif forward and right:

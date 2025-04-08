@@ -167,9 +167,7 @@ class Player:
         if self.collisions['down']:
             self.stamina = min(110, self.stamina + 1)
         elif self.wall_slide:
-            self.stamina = max(0, self.stamina - 0.1)
-        elif self.air_time > PLAYER_AIR_TIME_THRESHOLD:
-            self.stamina = max(0, self.stamina - 0.15)
+            self.stamina = max(0, self.stamina - 1/6)
         
         if ((self.collisions['right'] or self.collisions['left']) and 
             self.air_time > PLAYER_AIR_TIME_THRESHOLD and 
@@ -221,7 +219,7 @@ class Player:
                 dash_power *= 0.7071 
             
             self.velocity[0] = direction_x * dash_power
-            self.velocity[1] = direction_y * dash_power
+            self.velocity[1] = direction_y * dash_power * 0.8
             
             if abs(self.dashing) % 2 == 0:
                 pvelocity = [
